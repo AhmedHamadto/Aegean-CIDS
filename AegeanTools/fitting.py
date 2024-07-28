@@ -157,6 +157,41 @@ def Bmatrix(C):
     B = Q.dot(S)
     return B
 
+def param2dict(pars):
+    """
+    Analytical calculation of the Jacobian for an elliptical gaussian
+    Will work for a model that contains multiple Gaussians, and for which
+    some components are not being fit (don't vary).
+
+    Parameters
+    ----------
+    pars : lmfit.Model
+        The model parameters
+
+    Returns
+    -------
+    wd : dictionary
+        The dictionary holds the model parameters and whether they are allowed to vary or not.
+
+    
+    """
+    wd = {}
+    for i in range(pars['components'].value):
+        prefix = f"c{i}_"
+        wd[prefix+'amp'] = pars[prefix+'amp'].value
+        wd[prefix+'amp_vary'] = pars[prefix+'amp'].vary
+        wd[prefix+'xo'] = pars[prefix+'xo'].value
+        wd[prefix+'xo_vary'] = pars[prefix+'xo'].vary
+        wd[prefix+'yo'] = pars[prefix+'yo'].value
+        wd[prefix+'yo_vary'] = pars[prefix+'yo'].vary
+        wd[prefix+'sx'] = pars[prefix+'amp'].value
+        wd[prefix+'sx_vary'] = pars[prefix+'amp'].vary
+        wd[prefix+'yx'] = pars[prefix+'amp'].value
+        wd[prefix+'yx_vary'] = pars[prefix+'amp'].vary
+        wd[prefix+'amp'] = pars[prefix+'amp'].value
+        wd[prefix+'theta'] = pars[prefix+'theta'].vary
+    
+    return wd
 
 def jacobian(pars, x, y):
     """
