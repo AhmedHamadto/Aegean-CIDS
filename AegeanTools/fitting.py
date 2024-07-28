@@ -193,6 +193,62 @@ def param2dict(pars):
     
     return wd
 
+def fitting(iterations, matrix, wd, x, y):
+    for i in iterations:
+        prefix = f"c{i}_"
+        amp = wd[prefix + "amp"].value
+        xo = wd[prefix + "xo"].value
+        yo = wd[prefix + "yo"].value
+        sx = wd[prefix + "sx"].value
+        sy = wd[prefix + "sy"].value
+        theta = wd[prefix + "theta"].value
+
+        # The derivative with respect to component i
+        # doesn't depend on any other components thus
+        # the model should not contain the other components
+        model = elliptical_gaussian(x, y, amp, xo, yo, sx, sy, theta)
+
+        # precompute for speed
+        sint = np.sin(np.radians(theta))
+        cost = np.cos(np.radians(theta))
+        xxo = x - xo
+        yyo = y - yo
+        xcos, ycos = xxo * cost, yyo * cost
+        xsin, ysin = xxo * sint, yyo * sint
+
+        if wd[prefix + "amp_vary"]:
+            dmds = model / amp
+            matrix.append(dmds)
+
+        if wd[prefix + "xo_vary"]:
+            dmdxo = cost * (xcos + ysin) / sx**2 + sint * (xsin - ycos) / sy**2
+            dmdxo *= model
+            matrix.append(dmdxo)
+
+        if wd[prefix + "yo_vary"]:
+            dmdyo = sint * (xcos + ysin) / sx**2 - cost * (xsin - ycos) / sy**2
+            dmdyo *= model
+            matrix.append(dmdyo)
+
+        if wd[prefix + "sx_vary"]:
+            dmdsx = model / sx**3 * (xcos + ysin) ** 2
+            matrix.append(dmdsx)
+
+        if wd[prefix + "sy_vary"]:
+            dmdsy = model / sy**3 * (xsin - ycos) ** 2
+            matrix.append(dmdsy)
+
+        if wd[prefix + "theta_vary"]:
+            dmdtheta = (
+                model
+                * (sy**2 - sx**2)
+                * (xsin - ycos)
+                * (xcos + ysin)
+                / sx**2
+                / sy**2
+            )
+            matrix.append(dmdtheta)
+
 def jacobian(pars, x, y):
     """
     Analytical calculation of the Jacobian for an elliptical gaussian
@@ -218,60 +274,11 @@ def jacobian(pars, x, y):
 
     matrix = []
 
-    for i in range(pars["components"].value):
-        prefix = "c{0}_".format(i)
-        amp = pars[prefix + "amp"].value
-        xo = pars[prefix + "xo"].value
-        yo = pars[prefix + "yo"].value
-        sx = pars[prefix + "sx"].value
-        sy = pars[prefix + "sy"].value
-        theta = pars[prefix + "theta"].value
+    wd = param2dict(pars)
 
-        # The derivative with respect to component i
-        # doesn't depend on any other components thus
-        # the model should not contain the other components
-        model = elliptical_gaussian(x, y, amp, xo, yo, sx, sy, theta)
+    iterations = range(pars["components"].value)
 
-        # precompute for speed
-        sint = np.sin(np.radians(theta))
-        cost = np.cos(np.radians(theta))
-        xxo = x - xo
-        yyo = y - yo
-        xcos, ycos = xxo * cost, yyo * cost
-        xsin, ysin = xxo * sint, yyo * sint
-
-        if pars[prefix + "amp"].vary:
-            dmds = model / amp
-            matrix.append(dmds)
-
-        if pars[prefix + "xo"].vary:
-            dmdxo = cost * (xcos + ysin) / sx**2 + sint * (xsin - ycos) / sy**2
-            dmdxo *= model
-            matrix.append(dmdxo)
-
-        if pars[prefix + "yo"].vary:
-            dmdyo = sint * (xcos + ysin) / sx**2 - cost * (xsin - ycos) / sy**2
-            dmdyo *= model
-            matrix.append(dmdyo)
-
-        if pars[prefix + "sx"].vary:
-            dmdsx = model / sx**3 * (xcos + ysin) ** 2
-            matrix.append(dmdsx)
-
-        if pars[prefix + "sy"].vary:
-            dmdsy = model / sy**3 * (xsin - ycos) ** 2
-            matrix.append(dmdsy)
-
-        if pars[prefix + "theta"].vary:
-            dmdtheta = (
-                model
-                * (sy**2 - sx**2)
-                * (xsin - ycos)
-                * (xcos + ysin)
-                / sx**2
-                / sy**2
-            )
-            matrix.append(dmdtheta)
+    fitting(iterations, matrix, wd, x, y)
 
     return np.array(matrix)
 
