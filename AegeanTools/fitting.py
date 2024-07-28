@@ -159,9 +159,7 @@ def Bmatrix(C):
 
 def param2dict(pars):
     """
-    Analytical calculation of the Jacobian for an elliptical gaussian
-    Will work for a model that contains multiple Gaussians, and for which
-    some components are not being fit (don't vary).
+    Converts the lmfit.Model into a dictionary to allow the usage of Numba.
 
     Parameters
     ----------
@@ -173,7 +171,6 @@ def param2dict(pars):
     wd : dictionary
         The dictionary holds the model parameters and whether they are allowed to vary or not.
 
-    
     """
     wd = {}
     for i in range(pars['components'].value):
@@ -194,6 +191,29 @@ def param2dict(pars):
     return wd
 
 def fitting(iterations, matrix, wd, x, y):
+    """
+    Fits the model to the data.
+
+    Parameters
+    ----------
+    iterations : int
+        The number of iterations to repeat the calculation
+    
+    matrix : 2d numpy array
+        The empty matrix that will hold the jacobian.
+    
+    wd: dict.
+        The dictionary that holds all of the parameters.
+    
+    x, y : list
+        Locations at which the jacobian is being evaluated
+
+    Returns
+    -------
+    matrix : 2d array
+        The Jacobian.
+
+    """
     for i in iterations:
         prefix = f"c{i}_"
         amp = wd[prefix + "amp"].value
@@ -248,6 +268,8 @@ def fitting(iterations, matrix, wd, x, y):
                 / sy**2
             )
             matrix.append(dmdtheta)
+    
+    return matrix
 
 def jacobian(pars, x, y):
     """
@@ -278,7 +300,7 @@ def jacobian(pars, x, y):
 
     iterations = range(pars["components"].value)
 
-    fitting(iterations, matrix, wd, x, y)
+    matrix = fitting(iterations, matrix, wd, x, y)
 
     return np.array(matrix)
 
