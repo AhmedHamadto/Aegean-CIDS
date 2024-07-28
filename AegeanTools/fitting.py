@@ -181,12 +181,12 @@ def param2dict(pars):
         wd[prefix+'xo_vary'] = pars[prefix+'xo'].vary
         wd[prefix+'yo'] = pars[prefix+'yo'].value
         wd[prefix+'yo_vary'] = pars[prefix+'yo'].vary
-        wd[prefix+'sx'] = pars[prefix+'amp'].value
-        wd[prefix+'sx_vary'] = pars[prefix+'amp'].vary
-        wd[prefix+'yx'] = pars[prefix+'amp'].value
-        wd[prefix+'yx_vary'] = pars[prefix+'amp'].vary
-        wd[prefix+'amp'] = pars[prefix+'amp'].value
-        wd[prefix+'theta'] = pars[prefix+'theta'].vary
+        wd[prefix+'sx'] = pars[prefix+'sx'].value
+        wd[prefix+'sx_vary'] = pars[prefix+'sx'].vary
+        wd[prefix+'sy'] = pars[prefix+'sy'].value
+        wd[prefix+'sy_vary'] = pars[prefix+'sy'].vary
+        wd[prefix+'theta'] = pars[prefix+'theta'].value
+        wd[prefix+'theta_vary'] = pars[prefix+'theta'].vary
     
     return wd
 
@@ -216,12 +216,12 @@ def fitting(iterations, matrix, wd, x, y):
     """
     for i in iterations:
         prefix = f"c{i}_"
-        amp = wd[prefix + "amp"].value
-        xo = wd[prefix + "xo"].value
-        yo = wd[prefix + "yo"].value
-        sx = wd[prefix + "sx"].value
-        sy = wd[prefix + "sy"].value
-        theta = wd[prefix + "theta"].value
+        amp = wd[prefix + "amp"]
+        xo = wd[prefix + "xo"]
+        yo = wd[prefix + "yo"]
+        sx = wd[prefix + "sx"]
+        sy = wd[prefix + "sy"]
+        theta = wd[prefix + "theta"]
 
         # The derivative with respect to component i
         # doesn't depend on any other components thus
@@ -329,6 +329,7 @@ def emp_jacobian(pars, x, y):
     """
     eps = 1e-5
     matrix = []
+    
     model = ntwodgaussian_lmfit(pars)(x, y)
     for i in range(pars["components"].value):
         prefix = "c{0}_".format(i)
