@@ -190,7 +190,8 @@ def param2dict(pars):
     
     return wd
 
-def fitting(iterations, matrix, wd, x, y):
+# @njit
+def jacobian_fitting(iterations, matrix, wd, x, y):
     """
     Fits the model to the data.
 
@@ -300,7 +301,7 @@ def jacobian(pars, x, y):
 
     iterations = range(pars["components"].value)
 
-    matrix = fitting(iterations, matrix, wd, x, y)
+    matrix = jacobian_fitting(iterations, matrix, wd, x, y)
 
     return np.array(matrix)
 
@@ -330,13 +331,14 @@ def emp_jacobian(pars, x, y):
     eps = 1e-5
     matrix = []
     
-    model = ntwodgaussian_lmfit(pars)(x, y)
+    model = ntwodgaussian_lmfit(pars, x, y) # This is a numpy array
+    # logger.warning(f"This is the model type {type(model)}")
     for i in range(pars["components"].value):
         prefix = "c{0}_".format(i)
         for p in ["amp", "xo", "yo", "sx", "sy", "theta"]:
             if pars[prefix + p].vary:
                 pars[prefix + p].value += eps
-                dmdp = ntwodgaussian_lmfit(pars)(x, y) - model
+                dmdp = ntwodgaussian_lmfit(pars, x, y) - model
                 matrix.append(dmdp / eps)
                 pars[prefix + p].value -= eps
     matrix = np.array(matrix)
@@ -875,7 +877,7 @@ def RB_bias(data, pars, ita=None, acf=None):
 
     if ita is None:
         # N is the noise (data-model)
-        N = data - ntwodgaussian_lmfit(pars)(x, y)
+        N = data - ntwodgaussian_lmfit(pars, x, y)
         if acf is None:
             acf = nan_acf(N)
         ita = make_ita(N, acf=acf)
@@ -1255,7 +1257,38 @@ def new_errors(source, model, wcshelper):  # pragma: no cover
 
     return source
 
-def ntwodgaussian_lmfit(params):
+# @njit
+def rfunc(iterations, wd, x, y):
+        """
+        Compute the model given by params, at pixel coordinates x,y
+
+        Parameters
+        ----------
+        x, y : numpy.ndarray
+            The x/y pixel coordinates at which the model is being evaluated
+
+        Returns
+        -------
+        result : numpy.ndarray
+            Model
+        """
+        result = None
+        for i in iterations:
+            prefix = "c{0}_".format(i)
+            # I hope this doesn't kill our run time
+            amp = np.nan_to_num(wd[prefix + "amp"])
+            xo = wd[prefix + "xo"]
+            yo = wd[prefix + "yo"]
+            sx = wd[prefix + "sx"]
+            sy = wd[prefix + "sy"]
+            theta = wd[prefix + "theta"]
+            if result is not None:
+                result += elliptical_gaussian(x, y, amp, xo, yo, sx, sy, theta)
+            else:
+                result = elliptical_gaussian(x, y, amp, xo, yo, sx, sy, theta)
+        return result
+
+def ntwodgaussian_lmfit(params, x, y):
     """
     Convert an lmfit.Parameters object into a function which calculates the
     model.
@@ -1271,37 +1304,14 @@ def ntwodgaussian_lmfit(params):
     model : func
         A function f(x,y) that will compute the model.
     """
-    def rfunc(x, y):
-        """
-        Compute the model given by params, at pixel coordinates x,y
 
-        Parameters
-        ----------
-        x, y : numpy.ndarray
-            The x/y pixel coordinates at which the model is being evaluated
-
-        Returns
-        -------
-        result : numpy.ndarray
-            Model
-        """
-        result = None
-        for i in range(params["components"].value):
-            prefix = "c{0}_".format(i)
-            # I hope this doesn't kill our run time
-            amp = np.nan_to_num(params[prefix + "amp"].value)
-            xo = params[prefix + "xo"].value
-            yo = params[prefix + "yo"].value
-            sx = params[prefix + "sx"].value
-            sy = params[prefix + "sy"].value
-            theta = params[prefix + "theta"].value
-            if result is not None:
-                result += elliptical_gaussian(x, y, amp, xo, yo, sx, sy, theta)
-            else:
-                result = elliptical_gaussian(x, y, amp, xo, yo, sx, sy, theta)
-        return result
-
-    return rfunc
+    iterations = range(params["components"].value)
+    # logger.warning(f"This is the value of iterations {iterations} and this is its type {type(iterations)}")
+    wd = param2dict(params)
+    
+    result = rfunc(iterations, wd, x, y)
+    
+    return result
 
 def do_lmfit(data, params, B=None, errs=None, dojac=True):
     """
@@ -1358,8 +1368,8 @@ def do_lmfit(data, params, B=None, errs=None, dojac=True):
         result : numpy.ndarray
             Model - Data
         """
-        f = ntwodgaussian_lmfit(params)  # A function describing the model
-        model = f(*mask)  # The actual model
+        f = ntwodgaussian_lmfit(params, *mask)  # A function describing the model
+        model = f  # The actual model
 
         if np.any(~np.isfinite(model)):
             raise AegeanNaNModelError(
