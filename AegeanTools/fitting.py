@@ -64,7 +64,6 @@ def elliptical_gaussian(x, y, amp, xo, yo, sx, sy, theta):
     return amp * np.exp(exp)
 
 
-
 def elliptical_gaussian_with_alpha(
     x, y, v, amp, xo, yo, vo, sx, sy, theta, alpha, beta=None
 ):
@@ -159,7 +158,7 @@ def Bmatrix(C):
     B = Q.dot(S)
     return B
 
-def param2dict(pars):
+def param2dict(wd, pars):
     """
     Converts the lmfit.Model into a dictionary to allow the usage of Numba.
 
@@ -174,7 +173,6 @@ def param2dict(pars):
         The dictionary holds the model parameters and whether they are allowed to vary or not.
 
     """
-    wd = {}
     for i in range(pars['components'].value):
         prefix = f"c{i}_"
         wd[prefix+'amp'] = pars[prefix+'amp'].value
@@ -301,9 +299,9 @@ def jacobian(pars, x, y):
 
     wd = njit_dictionary()
 
-    wd = param2dict(pars)
+    wd = param2dict(wd, pars)
 
-    iterations = range(pars["components"].value)
+    iterations = list(range(pars["components"].value))
 
     matrix = jacobian_fitting(iterations, matrix, wd, x, y)
 
@@ -338,7 +336,7 @@ def emp_jacobian(pars, x, y):
     model = ntwodgaussian_lmfit(pars, x, y) # This is a numpy array
     # logger.warning(f"This is the model type {type(model)}")
     for i in range(pars["components"].value):
-        prefix = "c{0}_".format(i)
+        prefix = f"c{i}_"
         for p in ["amp", "xo", "yo", "sx", "sy", "theta"]:
             if pars[prefix + p].vary:
                 pars[prefix + p].value += eps
@@ -435,7 +433,7 @@ def hessian(pars, x, y):
     npvar = 0
 
     for i in range(pars["components"].value):
-        prefix = "c{0}_".format(i)
+        prefix = f"c{i}_"
         amp = pars[prefix + "amp"].value
         xo = pars[prefix + "xo"].value
         yo = pars[prefix + "yo"].value
@@ -749,7 +747,7 @@ def emp_hessian(pars, x, y):
     matrix = []
     for i in range(pars["components"].value):
         model = emp_jacobian(pars, x, y)
-        prefix = "c{0}_".format(i)
+        prefix = f"c{i}_"
         for p in ["amp", "xo", "yo", "sx", "sy", "theta"]:
             if pars[prefix + p].vary:
                 pars[prefix + p].value += eps
@@ -856,7 +854,7 @@ def RB_bias(data, pars, ita=None, acf=None):
     bias : array
         The bias on each of the parameters
     """
-    logger.info("data {0}".format(data.shape))
+    logger.info(f"data {data.shape}")
     nparams = np.sum([pars[k].vary for k in pars.keys() if k != "components"])
     # masked pixels
     xm, ym = np.where(np.isfinite(data))
@@ -1261,7 +1259,7 @@ def new_errors(source, model, wcshelper):  # pragma: no cover
 
     return source
 
-# @njit
+@njit
 def ntwodgaussian_njit(iterations, wd, x, y):
         """
         Compute the model given by params, at pixel coordinates x,y
@@ -1278,7 +1276,7 @@ def ntwodgaussian_njit(iterations, wd, x, y):
         """
         result = None
         for i in iterations:
-            prefix = "c{0}_".format(i)
+            prefix = f"c{i}_"
             # I hope this doesn't kill our run time
             amp = np.nan_to_num(wd[prefix + "amp"])
             xo = wd[prefix + "xo"]
@@ -1287,7 +1285,8 @@ def ntwodgaussian_njit(iterations, wd, x, y):
             sy = wd[prefix + "sy"]
             theta = wd[prefix + "theta"]
             if result is not None:
-                result += elliptical_gaussian(x, y, amp, xo, yo, sx, sy, theta)
+                placeholder_result = elliptical_gaussian(x, y, amp, xo, yo, sx, sy, theta)
+                result = result + placeholder_result
             else:
                 result = elliptical_gaussian(x, y, amp, xo, yo, sx, sy, theta)
         
@@ -1298,7 +1297,7 @@ def njit_dictionary():
     # Make dictionary
     dictionary = Dict.empty(
         key_type=types.unicode_type,
-        value_type=types.float64[:],
+        value_type=types.float64,
     )
     return dictionary
 
@@ -1319,11 +1318,11 @@ def ntwodgaussian_lmfit(params, x, y):
         A function f(x,y) that will compute the model.
     """
 
-    iterations = range(params["components"].value)
-    # logger.warning(f"This is the value of iterations {iterations} and this is its type {type(iterations)}")
-    wd = njit_dictionary()
+    iterations = list(range(params["components"].value))
 
-    wd = param2dict(params)
+    wd = njit_dictionary()
+    
+    wd = param2dict(wd, params)
 
     result = ntwodgaussian_njit(iterations, wd, x, y)
     
@@ -1464,7 +1463,7 @@ def covar_errors(params, data, errs, B, C=None):
             onesigma = [-2] * len(mask[0])
 
     for i in range(params["components"].value):
-        prefix = "c{0}_".format(i)
+        prefix = f"c{i}_"
         j = 0
         for p in ["amp", "xo", "yo", "sx", "sy", "theta"]:
             if params[prefix + p].vary:
