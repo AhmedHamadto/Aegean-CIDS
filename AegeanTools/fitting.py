@@ -14,6 +14,8 @@ from . import flags
 from .angle_tools import bear, gcd
 from .exceptions import AegeanNaNModelError
 from numba import njit
+from numba import types
+from numba.typed import Dict
 
 __author__ = "Paul Hancock"
 
@@ -296,6 +298,8 @@ def jacobian(pars, x, y):
     """
 
     matrix = []
+
+    wd = njit_dictionary()
 
     wd = param2dict(pars)
 
@@ -1258,7 +1262,7 @@ def new_errors(source, model, wcshelper):  # pragma: no cover
     return source
 
 # @njit
-def rfunc(iterations, wd, x, y):
+def ntwodgaussian_njit(iterations, wd, x, y):
         """
         Compute the model given by params, at pixel coordinates x,y
 
@@ -1286,7 +1290,17 @@ def rfunc(iterations, wd, x, y):
                 result += elliptical_gaussian(x, y, amp, xo, yo, sx, sy, theta)
             else:
                 result = elliptical_gaussian(x, y, amp, xo, yo, sx, sy, theta)
+        
         return result
+
+@njit
+def njit_dictionary():
+    # Make dictionary
+    dictionary = Dict.empty(
+        key_type=types.unicode_type,
+        value_type=types.float64[:],
+    )
+    return dictionary
 
 def ntwodgaussian_lmfit(params, x, y):
     """
@@ -1307,9 +1321,11 @@ def ntwodgaussian_lmfit(params, x, y):
 
     iterations = range(params["components"].value)
     # logger.warning(f"This is the value of iterations {iterations} and this is its type {type(iterations)}")
+    wd = njit_dictionary()
+
     wd = param2dict(params)
-    
-    result = rfunc(iterations, wd, x, y)
+
+    result = ntwodgaussian_njit(iterations, wd, x, y)
     
     return result
 
