@@ -1848,6 +1848,7 @@ class SourceFinder(object):
         docov=True,
         cube_index=None,
         progress=True,
+        threeD=False,
     ):
         """
         Run the Aegean source finder.
@@ -1929,23 +1930,41 @@ class SourceFinder(object):
         else:
             cores = multiprocessing.cpu_count()
 
-        self.load_globals(
-            filename,
-            hdu_index=hdu_index,
-            bkgin=bkgin,
-            rmsin=rmsin,
-            beam=beam,
-            verb=True,
-            rms=rms,
-            bkg=bkg,
-            cores=cores,
-            mask=mask,
-            psf=imgpsf,
-            blank=blank,
-            docov=docov,
-            cube_index=cube_index,
-        )
-
+        if not threeD:
+            self.load_globals(
+                filename,
+                hdu_index=hdu_index,
+                bkgin=bkgin,
+                rmsin=rmsin,
+                beam=beam,
+                verb=True,
+                rms=rms,
+                bkg=bkg,
+                cores=cores,
+                mask=mask,
+                psf=imgpsf,
+                blank=blank,
+                docov=docov,
+                cube_index=cube_index #! as_cube=False not added as it is the default
+            )
+        else:
+            self.load_globals(
+                filename,
+                hdu_index=hdu_index,
+                bkgin=bkgin,
+                rmsin=rmsin,
+                beam=beam,
+                verb=True,
+                rms=rms,
+                bkg=bkg,
+                cores=cores,
+                mask=mask,
+                psf=imgpsf,
+                blank=blank,
+                docov=docov,
+                cube_index=cube_index,
+                as_cube = True,
+            )
         logger.info(
             "beam = {0:5.2f}'' x {1:5.2f}'' at {2:5.2f}deg".format(
                 self.beam.a * 3600,

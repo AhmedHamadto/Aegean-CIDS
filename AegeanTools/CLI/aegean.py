@@ -143,7 +143,7 @@ def main():
         default=None,
         help="Assume a single image background of bkg." " [default: None]",
     )
-    group1.add_argument(
+    group1.add_argument( #! found a group1 in group2
         "--cores",
         dest="cores",
         type=int,
@@ -184,6 +184,13 @@ def main():
         help="Automatically look for background, noise, "
         "region, and psf files using the input filename "
         "as a hint. [default: don't do this]",
+    )
+    group2.add_argument(
+        "--3d",
+        dest="threeD",
+        action="store_true",
+        default=False,
+        help="Treat the input image as a 3D cube. "
     )
 
     # Output
@@ -585,6 +592,7 @@ def main():
             docov=options.docov,
             cube_index=options.slice,
             progress=options.progress,
+            threeD=options.threeD,
         )
         if options.blank:
             outname = basename + "_blank.fits"
