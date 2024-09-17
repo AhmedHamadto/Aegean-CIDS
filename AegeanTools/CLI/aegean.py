@@ -415,11 +415,11 @@ def main():
         print(__citation__)
         return 0
 
-    import AegeanTools
-    from AegeanTools.source_finder import SourceFinder
+    import AegeanTools #! This import is not at the top
+    from AegeanTools.source_finder import SourceFinder #! This import is not at the top
 
     # source finding object
-    sf = SourceFinder()
+    sf = SourceFinder() #! <--- This is the source finder object
 
     if options.table_formats:
         show_formats()

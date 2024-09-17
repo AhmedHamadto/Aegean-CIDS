@@ -99,7 +99,7 @@ def find_islands(
     # compute SNR image
     snr = abs(im - bkg) / rms
 
-    # mask of pixles that are above the flood_clip
+    # mask of pixles that are above the flood_clip #! What does this mean?
     a = snr >= flood_clip
 
     if not np.any(a):
@@ -111,7 +111,7 @@ def find_islands(
     l, n = label(a, structure=np.ones((3, 3)))
     f = find_objects(l)
 
-    logger.debug("{1} Found {0} islands total above flood limit".format(n, im.shape))
+    logger.debug(f"{n} Found {im.shape} islands total above flood limit") #! Amended the format string
 
     islands = []
     for i in range(n):
@@ -1301,7 +1301,7 @@ class SourceFinder(object):
         for inum, isle in enumerate(group, start=istart):
             logger.debug("-=-")
             logger.debug(
-                "input island = {0}, {1} components".format(isle[0].island, len(isle))
+                f"input island = {isle[0].island}, {len(isle)} components" #! Amended the formatted string
             )
 
             # set up the parameters for each of the sources within the island
@@ -1380,7 +1380,7 @@ class SourceFinder(object):
                 s_lims = [0.8 * min(sx, pixbeam.b * FWHM2CC), max(sy, sx) * 1.25]
 
                 # Set up the parameters for the fit, including constraints
-                prefix = "c{0}_".format(i)
+                prefix = f"c{i}_" #! Amended the formatted string
                 params.add(prefix + "amp", value=src.peak_flux, vary=True)
                 # for now the xo/yo are locations within the main image,
                 # we correct this later
@@ -1825,7 +1825,7 @@ class SourceFinder(object):
 
         return best_sources
 
-    def find_sources_in_image(
+    def find_sources_in_image( #! <--- This is the main function
         self,
         filename,
         hdu_index=0,
@@ -1975,19 +1975,20 @@ class SourceFinder(object):
         # stop people from doing silly things.
         if outerclip > innerclip:
             outerclip = innerclip
-        logger.info("seedclip={0}".format(innerclip))
-        logger.info("floodclip={0}".format(outerclip))
+        logger.info(f"seedclip={innerclip}") #! Corrected the formatted string
+        logger.info(f"floodclip={outerclip}") #! Corrected the formatted string
 
-        islands = find_islands(
+        islands = find_islands( #! <--- This is the first step, does it differ for 3D?
             im=self.img,
             bkg=np.zeros_like(self.img),
             rms=self.rmsimg,
             seed_clip=innerclip,
             flood_clip=outerclip,
-            region=self.region,
-            wcs=self.wcshelper,
+            region=self.region, #? <--- This is the region mask, how does it work for 3D?
+            wcs=self.wcshelper, #! <--- This is the WCS helper, it is ignored for now
+                                #!      Any changes needed for 3D?
         )
-        logger.info("Found {0} islands".format(len(islands)))
+        logger.info(f"Found {len(islands)} islands") #! Corrected the formatted string
         logger.info("Begin fitting")
 
         island_group = []
@@ -2073,7 +2074,8 @@ class SourceFinder(object):
         logger.info("Fit {0} sources".format(len(sources)))
         return sources
 
-    def priorized_fit_islands(
+    def priorized_fit_islands( #! <- This is done first for a 3D image, so should it be amended?
+                                #!   Then it is passed to the 3D fitting function?
         self,
         filename,
         catalogue,
@@ -2176,7 +2178,7 @@ class SourceFinder(object):
 
         """
 
-        from AegeanTools.cluster import regroup_dbscan
+        from AegeanTools.cluster import regroup_dbscan #! <- This import is not at the top
 
         self.load_globals(
             filename,
@@ -2209,7 +2211,7 @@ class SourceFinder(object):
         ok = True
         for param in ["ra", "dec", "peak_flux", "a", "b", "pa"]:
             if np.isnan(getattr(input_sources[0], param)):
-                logger.info("Source 0, is missing param '{0}'".format(param))
+                logger.info(f"Source 0, is missing param '{param}'") #! Amended the formatted string
                 ok = False
         if not ok:
             logger.error("Missing parameters! Not fitting.")
@@ -2218,9 +2220,9 @@ class SourceFinder(object):
         del ok
 
         # Do the resizing
-        logger.info("{0} sources in catalog".format(len(input_sources)))
+        logger.info(f"{len(input_sources)} sources in catalog") #! Amended the formatted string
         sources = cluster.resize(input_sources, ratio=ratio, wcshelper=self.wcshelper)
-        logger.info("{0} sources accepted".format(len(sources)))
+        logger.info(f"{len(sources)} sources accepted") #! Amended the formatted string
 
         if len(sources) < 1:
             logger.debug("No sources accepted for priorized fitting")
@@ -2264,7 +2266,7 @@ class SourceFinder(object):
             disable=not progress,
         ) as pbar:
             for i, g in enumerate(island_groups):
-                srcs = self._refit_islands(g, stage, outerclip, istart=i)
+                srcs = self._refit_islands(g, stage, outerclip, istart=i) #! <- This is the fitting
                 # update bar as each individual island is fit
                 pbar.update(1)
                 sources.extend(srcs)

@@ -463,9 +463,8 @@ class PixelIsland(object):
         data : np.array
         """
         if len(data.shape) != self.dim:
-            raise AssertionError(
-                ("mask shape {0} is of the wrong dimension. " +
-                 "Expecting {1}").format(data.shape, self.dim)
+            raise AssertionError( #! Amended the format string
+                (f"mask shape {data.shape} is of the wrong dimension. Expecting {self.dim}")
                 )
         self.mask = data
         return
@@ -486,10 +485,9 @@ class PixelIsland(object):
             len(offsets)==dim
         """
         if len(offsets) != self.dim:
-            raise AssertionError(
-                "{0} offsets were passed but {1} are required".format(
-                    len(offsets), self.dim)
-                    )
+            raise AssertionError( #! Amended the format string
+                f"{len(offsets)} offsets were passed but {self.dim} are required"
+            )
         # TODO: Figure out 3d boxes
         # set the bounding box one dimension at a time
         ndrow = np.any(data, axis=0)
