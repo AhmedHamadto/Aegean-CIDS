@@ -1318,7 +1318,7 @@ class SourceFinder(object):
             included_sources = []
             for src in isle:
                 pixbeam = Beam(*self.wcshelper.get_psf_sky2pix(src.ra, src.dec))
-                # find the right pixels from the ra/dec
+                # find the right pixels from the ra/dec 
                 source_x, source_y = self.wcshelper.sky2pix([src.ra, src.dec])
                 source_x -= 1
                 source_y -= 1
@@ -1413,6 +1413,10 @@ class SourceFinder(object):
                     vary=stage >= 3,
                 )
                 params.add(prefix + "theta", value=theta, vary=stage >= 3)
+                #! ->
+                params.add(prefix + "alpha", value=-1, vary=True) #! Think about the limits of alpha (somewhere between -5 <= alpha <= 5)
+                params.add(prefix + "nu0", value=self.wcshelper.pix2freq(0), vary=False) #! Modify the WCS to see the 3D coordiantes, what is the ra/dec/freq
+                #TODO: Write the pix2freq function
                 params.add(prefix + "flags", value=0, vary=False)
                 # this source is being refit so add it to the list
                 included_sources.append(src)
@@ -1449,10 +1453,11 @@ class SourceFinder(object):
             # this .copy() will stop us from modifying the parent region when
             # we later apply our mask.
             idata = data[int(xmin) : int(xmax), int(ymin) : int(ymax)].copy()
+            # idata = data[zmin:zmax ,int(xmin) : int(xmax), int(ymin) : int(ymax)].copy()
             # now convert these back to indices within the idata region
             # island_mask = np.array([(x-xmin, y-ymin) for x,y in island_mask])
 
-            allx, ally = np.indices(idata.shape)
+            allx, ally = np.indices(idata.shape) #! allz in the beginning
             # mask to include pixels that are withn the FWHM
             # of the sources being fit
             mask_params = copy.deepcopy(params)
@@ -1930,41 +1935,24 @@ class SourceFinder(object):
         else:
             cores = multiprocessing.cpu_count()
 
-        if not threeD:
-            self.load_globals(
-                filename,
-                hdu_index=hdu_index,
-                bkgin=bkgin,
-                rmsin=rmsin,
-                beam=beam,
-                verb=True,
-                rms=rms,
-                bkg=bkg,
-                cores=cores,
-                mask=mask,
-                psf=imgpsf,
-                blank=blank,
-                docov=docov,
-                cube_index=cube_index #! as_cube=False not added as it is the default
-            )
-        else:
-            self.load_globals(
-                filename,
-                hdu_index=hdu_index,
-                bkgin=bkgin,
-                rmsin=rmsin,
-                beam=beam,
-                verb=True,
-                rms=rms,
-                bkg=bkg,
-                cores=cores,
-                mask=mask,
-                psf=imgpsf,
-                blank=blank,
-                docov=docov,
-                cube_index=cube_index,
-                as_cube = True,
-            )
+        
+        self.load_globals(
+            filename,
+            hdu_index=hdu_index,
+            bkgin=bkgin,
+            rmsin=rmsin,
+            beam=beam,
+            verb=True,
+            rms=rms,
+            bkg=bkg,
+            cores=cores,
+            mask=mask,
+            psf=imgpsf,
+            blank=blank,
+            docov=docov,
+            cube_index=cube_index,
+            as_cube = threeD,
+        )
         logger.info(
             "beam = {0:5.2f}'' x {1:5.2f}'' at {2:5.2f}deg".format(
                 self.beam.a * 3600,
@@ -1978,15 +1966,14 @@ class SourceFinder(object):
         logger.info(f"seedclip={innerclip}") #! Corrected the formatted string
         logger.info(f"floodclip={outerclip}") #! Corrected the formatted string
 
-        islands = find_islands( #! <--- This is the first step, does it differ for 3D?
+        islands = find_islands(
             im=self.img,
             bkg=np.zeros_like(self.img),
             rms=self.rmsimg,
             seed_clip=innerclip,
             flood_clip=outerclip,
-            region=self.region, #? <--- This is the region mask, how does it work for 3D?
-            wcs=self.wcshelper, #! <--- This is the WCS helper, it is ignored for now
-                                #!      Any changes needed for 3D?
+            region=self.region, 
+            wcs=self.wcshelper,
         )
         logger.info(f"Found {len(islands)} islands") #! Corrected the formatted string
         logger.info("Begin fitting")
@@ -2178,7 +2165,7 @@ class SourceFinder(object):
 
         """
 
-        from AegeanTools.cluster import regroup_dbscan #! <- This import is not at the top
+        from AegeanTools.cluster import regroup_dbscan
 
         self.load_globals(
             filename,
