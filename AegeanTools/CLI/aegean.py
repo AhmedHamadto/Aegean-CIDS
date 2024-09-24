@@ -415,8 +415,8 @@ def main():
         print(__citation__)
         return 0
 
-    import AegeanTools #! This import is not at the top
-    from AegeanTools.source_finder import SourceFinder #! This import is not at the top
+    import AegeanTools
+    from AegeanTools.source_finder import SourceFinder
 
     # source finding object
     sf = SourceFinder() #! <--- This is the source finder object

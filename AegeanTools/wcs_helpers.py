@@ -47,10 +47,10 @@ class WCSHelper(object):
         The synthesized beam as defined by the fits header (at the reference
         location).
 
-    pixscale : (float, float)
+    pixscale : (float, float) #! Should be 3D
         The pixel scale at the reference location (degrees)
 
-    refpix : (float, float)
+    refpix : (float, float) #! Should be 3D
         The reference location in pixel coordinates
 
     psf_file : str
@@ -73,10 +73,10 @@ class WCSHelper(object):
         beam : :class:`AegeanTools.wcs_helpers.Beam`
             The synthesized beam.
 
-        pixscale : (float, float)
+        pixscale : (float, float) #! Should be 3D
             The pixel scale at the reference location (degrees)
 
-        refpix : (float, float)
+        refpix : (float, float) #! Should be 3D
             The reference location in pixel coordinates
 
         psf_file : str
@@ -149,7 +149,7 @@ class WCSHelper(object):
 
         beam : :class:`AegeanTools.wcs_helpers.Beam` or None
             The synthesized beam. If the supplied beam is None then one is
-            constructed form the header.
+            constructed from the header.
 
         psf_file : str
             Filename for a psf map
@@ -161,7 +161,8 @@ class WCSHelper(object):
         """
         try:
             wcs = WCS(header, naxis=2)
-        except:  # TODO: figure out what error is being thrown
+        except:  # TODO: figure out what error is being thrown 
+                #! Might be a value error
             wcs = WCS(str(header), naxis=2)
 
         if beam is None:
@@ -175,6 +176,47 @@ class WCSHelper(object):
 
         _, pixscale = get_pixinfo(header)
         refpix = (header["CRPIX1"], header["CRPIX2"])
+        return cls(wcs, beam, pixscale, refpix, psf_file=psf_file)
+    
+    @classmethod
+    def from_header_3d(cls, header, beam=None, psf_file=None):
+        """
+        Create a new WCSHelper class from the given header.
+
+        Parameters
+        ----------
+        header : `astropy.fits.HDUHeader` or string
+            The header to be used to create the WCS helper
+
+        beam : :class:`AegeanTools.wcs_helpers.Beam` or None
+            The synthesized beam. If the supplied beam is None then one is
+            constructed from the header.
+
+        psf_file : str
+            Filename for a psf map
+
+        Returns
+        -------
+        obj : :class:`AegeanTools.wcs_helpers.WCSHelper`
+            A helper object.
+        """
+        try:
+            wcs = WCS(header, naxis=2)
+        except:  # TODO: figure out what error is being thrown 
+                #! Might be a value error
+            wcs = WCS(str(header), naxis=2)
+
+        if beam is None:
+            beam = get_beam(header)
+        else:
+            beam = beam
+
+        if beam is None:
+            logger.critical("Cannot determine beam information")
+            raise AssertionError("Cannot determine beam information")
+
+        _, pixscale = get_pixinfo(header)
+        refpix = (header["CRPIX1"], header["CRPIX2"], header["CRPIX3"])
         return cls(wcs, beam, pixscale, refpix, psf_file=psf_file)
 
     @classmethod
@@ -221,7 +263,49 @@ class WCSHelper(object):
         x, y = pixel
         # wcs and python have opposite ideas of x/y
         return self.wcs.all_pix2world([[y, x]], 1, ra_dec_order=self.ra_dec_order)[0]
+    
+    def pix2freq(self, PIXEL_FREQ):
+        """
+        Convert pixel coordinates into sky coordinates.
+        Computed on the image wcs.
 
+        Parameters
+        ----------
+        pixel : (float, float, float)
+            The (x,y,z) pixel coordinates
+
+        Returns
+        -------
+        sky : (float, float, float)
+            The (ra,dec,freq) sky coordinates in degrees freq in Hz
+
+        """
+        header = fits.getheader(filename)
+        HEADER[""]
+        x, y, z = pixel_3d
+        # wcs and python have opposite ideas of x/y
+        return self.wcs.all_pix2world([[z, y, x]], 1, ra_dec_order=self.ra_dec_order)[0]
+
+    def freq2pix(self, pos):
+        """
+        Convert sky coordinates into pixel coordinates.
+        Computed on the image wcs.
+
+        Parameters
+        ----------
+        pos : (float, float, float)
+            The (ra, dec, freq) sky coordinates (degrees)
+
+        Returns
+        -------
+        pixel : (float, float, float)
+            The (x,y,z) pixel coordinates
+
+        """
+        pixel = self.wcs.all_world2pix([pos], 1, ra_dec_order=self.ra_dec_order)
+        # wcs and python have opposite ideas of x/y
+        return [pixel[0][2], pixel[0][1], pixel[0][0]]
+    
     def sky2pix(self, pos):
         """
         Convert sky coordinates into pixel coordinates.
@@ -299,7 +383,7 @@ class WCSHelper(object):
 
     def pix2sky_vec(self, pixel, r, theta):
         """
-        Given and input position and vector in pixel coordinates, calculate
+        Given an input position and vector in pixel coordinates, calculate
         the equivalent position and vector in sky coordinates.
 
         Parameters
@@ -636,6 +720,51 @@ def get_pixinfo(header):
     if all(a in header for a in ["CDELT1", "CDELT2"]):
         pixarea = abs(header["CDELT1"] * header["CDELT2"])
         pixscale = (header["CDELT1"], header["CDELT2"])
+    elif all(a in header for a in ["CD1_1", "CD1_2", "CD2_1", "CD2_2"]):
+        pixarea = abs(
+            header["CD1_1"] * header["CD2_2"] - header["CD1_2"] * header["CD2_1"]
+        )
+        pixscale = (header["CD1_1"], header["CD2_2"])
+        if not (header["CD1_2"] == 0 and header["CD2_1"] == 0):
+            logger.warning("Pixels don't appear to be square -> pixscale is wrong")
+    elif all(a in header for a in ["CD1_1", "CD2_2"]):
+        pixarea = abs(header["CD1_1"] * header["CD2_2"])
+        pixscale = (header["CD1_1"], header["CD2_2"])
+    else:
+        logger.critical(
+            "cannot determine pixel area" + "using zero EVEN THOUGH THIS IS WRONG!"
+        )
+        pixarea = 0
+        pixscale = (0, 0)
+    return pixarea, pixscale
+
+def get_pixinfo(header):
+    """
+    Return some pixel information based on the given hdu header pixarea - the
+    area of a single pixel in deg2 pixscale - the side lengths of a pixel
+    (assuming they are square)
+
+    Parameters
+    ----------
+    header : :class:`astropy.io.fits.HDUHeader`
+        FITS header information
+
+    Returns
+    -------
+    pixarea : float
+        The are of a single pixel at the reference location, in square degrees.
+
+    pixscale : (float, float)
+        The pixel scale in degrees, at the reference location.
+
+    Notes
+    -----
+    The reference location is not always at the image center, and the pixel
+    scale/area may change over the image, depending on the projection.
+    """
+    if all(a in header for a in ["CDELT1", "CDELT2"]):
+        pixarea = abs(header["CDELT1"] * header["CDELT2"])
+        pixscale = (header["CDELT1"], header["CDELT2"], header["CDELT3"])
     elif all(a in header for a in ["CD1_1", "CD1_2", "CD2_1", "CD2_2"]):
         pixarea = abs(
             header["CD1_1"] * header["CD2_2"] - header["CD1_2"] * header["CD2_1"]
