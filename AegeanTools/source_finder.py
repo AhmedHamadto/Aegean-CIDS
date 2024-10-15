@@ -1963,8 +1963,8 @@ class SourceFinder(object):
         # stop people from doing silly things.
         if outerclip > innerclip:
             outerclip = innerclip
-        logger.info(f"seedclip={innerclip}") #! Corrected the formatted string
-        logger.info(f"floodclip={outerclip}") #! Corrected the formatted string
+        logger.info(f"seedclip={innerclip}") 
+        logger.info(f"floodclip={outerclip}") 
 
         islands = find_islands(
             im=self.img,
@@ -1975,7 +1975,7 @@ class SourceFinder(object):
             region=self.region, 
             wcs=self.wcshelper,
         )
-        logger.info(f"Found {len(islands)} islands") #! Corrected the formatted string
+        logger.info(f"Found {len(islands)} islands")
         logger.info("Begin fitting")
 
         island_group = []
@@ -1990,7 +1990,7 @@ class SourceFinder(object):
             # ignore empty islands
             # This should now be impossible to trigger
             if not np.any(np.isfinite(i)):
-                logger.warning("Empty island detected, this should be imposisble.")
+                logger.warning("Empty island detected, this should be impossible.")
                 continue
             isle_num += 1
             scalars = (innerclip, outerclip, max_summits)
@@ -2198,7 +2198,7 @@ class SourceFinder(object):
         ok = True
         for param in ["ra", "dec", "peak_flux", "a", "b", "pa"]:
             if np.isnan(getattr(input_sources[0], param)):
-                logger.info(f"Source 0, is missing param '{param}'") #! Amended the formatted string
+                logger.info(f"Source 0, is missing param '{param}'")
                 ok = False
         if not ok:
             logger.error("Missing parameters! Not fitting.")
@@ -2207,9 +2207,9 @@ class SourceFinder(object):
         del ok
 
         # Do the resizing
-        logger.info(f"{len(input_sources)} sources in catalog") #! Amended the formatted string
+        logger.info(f"{len(input_sources)} sources in catalog")
         sources = cluster.resize(input_sources, ratio=ratio, wcshelper=self.wcshelper)
-        logger.info(f"{len(sources)} sources accepted") #! Amended the formatted string
+        logger.info(f"{len(sources)} sources accepted")
 
         if len(sources) < 1:
             logger.debug("No sources accepted for priorized fitting")
@@ -2253,7 +2253,7 @@ class SourceFinder(object):
             disable=not progress,
         ) as pbar:
             for i, g in enumerate(island_groups):
-                srcs = self._refit_islands(g, stage, outerclip, istart=i) #! <- This is the fitting
+                srcs = self._refit_islands(g, stage, outerclip, istart=i)
                 # update bar as each individual island is fit
                 pbar.update(1)
                 sources.extend(srcs)
