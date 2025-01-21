@@ -1,18 +1,31 @@
-### May 02 2024
-
-- Created a unit test for addSuffix function in aegean.py
-
-### Apr 30 2024
+### Jan 15 2025
 
 General
-- Created a addSuffix function in aegean.py to add a suffix to a filename
+- All command line scripts now use `configargparse`, so that users can supply a
+  configuration file via `--config` instead of a long list of command line arguments.
 
-- Added mpi4py to the dependencies
+Aegean
+- Output format '.crtf' is now supported for catalogues.
+- See [Casa Docs](https://casaguides.nrao.edu/index.php/CASA_Region_Format) for details on this format.
 
-### Apr 16 2024
+BANE
+- BANE is now able input/ouput data cubes in their entirety.
+- Default now is that if the input is a cube then the output will be a cube.
+- Use `--slice` to choose a single plane from a cube and output a 2d image.
+
+### Dec 09 2024
 
 General
-- Enable njit for elliptical_gaussian function
+- numba and mpi4py are now optional dependencies which, if installed, will make things faster
+- use `pip install AegeanTools[fast]` to also install number or `pip install AegeanTools[faster]` for both numba and mpi4py
+
+Aegean
+- Fitting is now faster thanks to numba
+
+BANE
+- Background estimation is faster thanks to numba
+- Resolve issue [#212](https://github.com/PaulHancock/Aegean/issues/212)
+- Fix bug [#213](https://github.com/PaulHancock/Aegean/issues/213) by setting default values for cores/stripes
 
 ### Jan 24 2024
 

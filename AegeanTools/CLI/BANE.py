@@ -1,7 +1,8 @@
 #! /usr/bin/env python
 
 # standard imports
-import argparse
+import configargparse
+import multiprocessing
 import os
 
 from AegeanTools import BANE, __citation__
@@ -11,9 +12,12 @@ __author__ = "Paul Hancock"
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="BANE", prefix_chars="-")
+    parser = configargparse.ArgumentParser(prog="BANE", prefix_chars="-")
     parser.add_argument("image", nargs="?", default=None)
     group1 = parser.add_argument_group("Configuration Options")
+    # Add configuration file argument
+    group1.add_argument("--config", is_config_file=True, help="Path to the config file")
+
     group1.add_argument(
         "--out",
         dest="out_base",
@@ -25,7 +29,7 @@ def main():
         dest="step_size",
         type=int,
         nargs=2,
-        help="The [x,y] size of the grid to use. " "Default = ~4* beam size square.",
+        help="The [x,y] size of the grid to use (units = pixels). Default = ~4* beam size square.",
     )
     group1.add_argument(
         "--box",
@@ -33,7 +37,7 @@ def main():
         type=int,
         nargs=2,
         help="The [x,y] size of the box over which the "
-        "rms/bkg is calculated. Default = 5*grid.",
+        "rms/bkg is calculated (units = pixels). Default = 5*grid.",
     )
     group1.add_argument(
         "--cores",
@@ -48,7 +52,7 @@ def main():
         "--slice",
         dest="cube_index",
         type=int,
-        default=0,
+        default=None,
         help="If the input data is a cube, then this slice "
         "will determine the array index of the image "
         "which will be processed by BANE",
@@ -89,10 +93,10 @@ def main():
         out_base=None,
         step_size=None,
         box_size=None,
-        twopass=True,
-        cores=None,
-        usescipy=False,
+        cores=multiprocessing.cpu_count(),
+        stripes=multiprocessing.cpu_count() - 1,
         debug=False,
+        cube_index=None,
     )
 
     options = parser.parse_args()
@@ -126,6 +130,12 @@ def main():
             )
             logger.error("Not running")
             return 1
+
+    if options.cores <= options.stripes:
+        logger.warning(
+            f"Adjusting --stripes {options.stripes} -> {options.cores-1} to avoid hanging your system"
+        )
+        options.stripes = options.cores - 1
 
     BANE.filter_image(
         im_name=options.image,
